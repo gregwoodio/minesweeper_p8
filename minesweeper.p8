@@ -17,6 +17,7 @@ function _init()
     state_game_lost=2
     state_game_won=3
     difficulty=1
+    first_click=true
 
     -- sprites
     cursor_icon1 = 1
@@ -100,11 +101,13 @@ function _update60()
 
         -- button pushes
         if (btnp(4)) then -- Z
-            -- flag current spot
-            if grid[cursor.y][cursor.x].flagged then
-                grid[cursor.y][cursor.x].flagged = false
-            else 
-                grid[cursor.y][cursor.x].flagged = true 
+            -- flag current spot if not selected
+            if grid[cursor.y][cursor.x].clicked == false then
+                if grid[cursor.y][cursor.x].flagged then
+                    grid[cursor.y][cursor.x].flagged = false
+                else 
+                    grid[cursor.y][cursor.x].flagged = true 
+                end
             end
         elseif (btnp(5)) then -- X
             -- select square
@@ -136,6 +139,7 @@ function setup_grid()
     if (difficulty == 2) num_mines = 32
     if (difficulty == 3) num_mines = 64 
 
+    first_click = true
     cursor={
         x=8,
         y=8
@@ -172,18 +176,7 @@ function setup_grid()
     end
 
     -- calculate neighbours
-    for row = 1, rows do
-        for col = 1, cols do
-            if (row - 1 > 0 and col - 1 > 0 and grid[row - 1][col - 1].mined) grid[row][col].neighbours+=1
-            if (row - 1 > 0 and grid[row - 1][col].mined) grid[row][col].neighbours+=1
-            if (row - 1 > 0 and col + 1 <= cols and grid[row - 1][col + 1].mined) grid[row][col].neighbours+=1
-            if (col - 1 > 0 and grid[row][col - 1].mined) grid[row][col].neighbours+=1
-            if (col + 1 <= cols and grid[row][col + 1].mined) grid[row][col].neighbours+=1
-            if (row + 1 <= rows and col - 1 > 0 and grid[row + 1][col - 1].mined) grid[row][col].neighbours+=1
-            if (row + 1 <= rows and grid[row + 1][col].mined) grid[row][col].neighbours+=1
-            if (row + 1 <= rows and col + 1 <= cols and grid[row + 1][col + 1].mined) grid[row][col].neighbours+=1
-        end
-    end
+    calculate_neighbours()
 end
 
 function get_square_sprite(x, y)
@@ -245,11 +238,38 @@ function select_square(y, x)
     end
 
     grid[y][x].clicked = true
-    if grid[y][x].mined == true then
-        sfx(1)
-        gamestate=state_game_lost
-        return
+    if grid[y][x].mined then
+        if first_click then
+            -- shouldn't lose on the first click
+            grid[y][x].mined = false
+
+            -- find an unmined square, mine it
+            local row = 1
+            local col = 1
+            local continue = true
+
+            while continue do
+                if grid[row][col].mined == false then
+                    grid[row][col].mined = true
+                    continue = false
+                else 
+                    col += 1
+                    if col >= cols then
+                        col = 1
+                        row += 1
+                    end
+                end
+            end
+
+            -- need calculate_neighboursed to recalculate neighbours now
+            calculate_neighbours()
+        else
+            sfx(1)
+            gamestate=state_game_lost
+            return
+        end
     end
+    first_click = false
 
     if grid[y][x].neighbours == 0 then
        if (y - 1 > 0 and x - 1 > 0) select_square(y-1, x-1)
@@ -260,6 +280,27 @@ function select_square(y, x)
        if (y + 1 <= rows and x - 1 > 0) select_square(y+1, x-1)
        if (y + 1 <= rows) select_square(y+1, x)
        if (y + 1 <= rows and x + 1 <= cols) select_square(y+1, x+1)
+    end
+end
+
+function calculate_neighbours()
+    for row = 1, rows do
+        for col = 1, cols do
+            grid[row][col].neighbours = 0
+        end
+    end
+
+    for row = 1, rows do
+        for col = 1, cols do
+            if (row - 1 > 0 and col - 1 > 0 and grid[row - 1][col - 1].mined) grid[row][col].neighbours+=1
+            if (row - 1 > 0 and grid[row - 1][col].mined) grid[row][col].neighbours+=1
+            if (row - 1 > 0 and col + 1 <= cols and grid[row - 1][col + 1].mined) grid[row][col].neighbours+=1
+            if (col - 1 > 0 and grid[row][col - 1].mined) grid[row][col].neighbours+=1
+            if (col + 1 <= cols and grid[row][col + 1].mined) grid[row][col].neighbours+=1
+            if (row + 1 <= rows and col - 1 > 0 and grid[row + 1][col - 1].mined) grid[row][col].neighbours+=1
+            if (row + 1 <= rows and grid[row + 1][col].mined) grid[row][col].neighbours+=1
+            if (row + 1 <= rows and col + 1 <= cols and grid[row + 1][col + 1].mined) grid[row][col].neighbours+=1
+        end
     end
 end
 
