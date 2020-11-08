@@ -36,6 +36,16 @@ function _init()
     bomb = 14
     menu_pointer = 15
 
+    --explosion particles
+    ps={}
+    num_particles=100
+    gravity=0.1
+    max_lifetime=100
+    min_lifetime=60
+    velocity=4
+    ticker=0
+    colors={2,8,8,8,9,9,9,10,10,10}
+
     setup_grid()
 end
 
@@ -55,6 +65,8 @@ function _draw()
         draw_cursor()
     end
 
+    foreach(ps, draw_particle)
+
     if gamestate == state_menu then
         draw_menu()
     elseif gamestate == state_game_lost then
@@ -65,6 +77,8 @@ function _draw()
 end
 
 function _update60()
+    foreach(ps, update_particle)
+
     if gamestate == state_menu then
         if btnp(2) then
             difficulty -= 1
@@ -265,6 +279,7 @@ function select_square(y, x)
             calculate_neighbours()
         else
             sfx(1)
+            add_particles(y, x)
             gamestate=state_game_lost
             return
         end
@@ -302,6 +317,49 @@ function calculate_neighbours()
             if (row + 1 <= rows and col + 1 <= cols and grid[row + 1][col + 1].mined) grid[row][col].neighbours+=1
         end
     end
+end
+
+function add_particles(y, x)
+    local ax = (x-1)*8+4
+    local ay = (y-1)*8+4
+    for p = 1, num_particles do
+        local veloX = rnd(velocity)
+        local veloY = rnd(velocity)
+        if (rnd() > 0.5) veloX *= -1
+        if (rnd() > 0.5) veloY *= -1
+
+        local p={
+            x=ax,
+            y=ay,
+            dy=veloY,
+            dx=veloX,
+            lifetime=rnd_between(min_lifetime, max_lifetime),
+            col=flr(rnd(colors)) + 1
+        }
+        add(ps, p)
+    end
+end
+
+function update_particle(p)
+    if p.lifetime <= 0 then
+        del(ps, p)
+    else
+        p.dy += gravity
+        --if p.x + p.dx > 127 then
+        --    p.dx *= -0.8
+        --end
+        p.x += p.dx
+        p.y += p.dy
+        p.lifetime -= 1
+    end
+end
+
+function draw_particle(p)
+    pset(p.x, p.y, p.col)
+end
+
+function rnd_between(low, high)
+    return flr(rnd(high - low + 1) + low)
 end
 
 __gfx__
